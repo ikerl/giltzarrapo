@@ -89,8 +89,11 @@ if __name__ == "__main__":
         print("[+] Importando clave RSA")
         try:
             PUBkey = RSA.importKey(open(keyfile, "rb").read())
+        except FileNotFoundError:
+            print("[-] El fichero {} no existe".format(keyfile))
+            sys.exit(-1)
         except:
-            print("[-] Clave RSA no encontrada o invalida")
+            print("[-] Clave RSA invalida")
             sys.exit(-1)
 
     print("[+] Clave publica RSA obtenida con exito")
@@ -98,12 +101,18 @@ if __name__ == "__main__":
     try:
         file = open(inputfile, "rb")
         file_size = os.path.getsize(inputfile)
+    except FileNotFoundError:
+        print("[-] El fichero {} no existe".format(inputfile))
+        sys.exit(-1)
     except:
         print("[-] El fichero {} no se ha podido abrir".format(inputfile))
         sys.exit(-1)
 
     try:
         cripto_file = open(outputfile, "wb")
+    except FileNotFoundError:
+        print("[-] El fichero {} no existe".format(outputfile))
+        sys.exit(-1)
     except:
         print("[-] El fichero {} no se ha podido abrir".format(outputfile))
         sys.exit(-1)
@@ -119,18 +128,24 @@ if __name__ == "__main__":
             n_bloques += 1
             bytes_read = file.read(CHUNKSIZE)
             blocks[n_bloques] = bytes_read
+            # Padding
+            block_size = len(blocks[n_bloques])
+            blocks[n_bloques] = bytes(blocks[n_bloques]) + (CHUNKSIZE - block_size)*b"\x00"
     finally:
         file.close()
+    
 
     print("[+] Se han detectado {} bloques".format(n_bloques))
 
     if selected_block == None:
-        selected_block = random.randint(0, n_bloques-2)
+        intentos = 0
+        selected_block = random.randint(0, n_bloques-1)
         entropia = entropy(blocks[selected_block].hex())
-        while entropia < 2:
-            print("[-] Se ha seleccionado el bloque {} pero tiene una entropia muy baja de {}".format(selected_block,entropia))
-            selected_block = random.randint(0, n_bloques-2)
+        while entropia < 3 and intentos < 5:
+            print("[-] Se ha seleccionado el bloque {} pero tiene una entropia muy baja de {} [{}/5]".format(selected_block,entropia,intentos+1))
+            selected_block = random.randint(0, n_bloques-1)
             entropia = entropy(blocks[selected_block].hex())
+            intentos += 1
     else:
         if selected_block < n_bloques and selected_block >= 0:
             entropia = entropy(blocks[selected_block].hex())
@@ -151,8 +166,8 @@ if __name__ == "__main__":
             cripto_file.write(blocks[n])
             print("[+] El bloque {} se ha cifrado con la publica".format(n))
         else:
-            block_size = len(blocks[n])
-            blocks[n] = encryptor.encrypt(bytes(blocks[n]) + (CHUNKSIZE - block_size)*b"\x00")
+            #block_size = len(blocks[n])
+            blocks[n] = encryptor.encrypt(bytes(blocks[n]))
             cripto_file.write(blocks[n])
 
     cripto_file.write(int(CHUNKSIZE - block_size).to_bytes(2, 'little'))

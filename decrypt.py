@@ -60,8 +60,11 @@ if __name__ == "__main__":
     print("[+] Importando clave privada RSA")
     try:
         key = RSA.importKey(open(keyfile, "rb").read(),passphrase=password)
+    except FileNotFoundError:
+        print("[-] El fichero {} no existe".format(keyfile))
+        sys.exit(-1)
     except:
-        print("[-] Clave RSA no encontrada o invalida")
+        print("[-] Clave RSA invalida")
         sys.exit(-1)
 
     print("[+] Clave publica RSA obtenida con exito")
@@ -69,12 +72,18 @@ if __name__ == "__main__":
     try:
         cripto_file = open(inputfile, "rb")
         file_size = os.path.getsize(inputfile)
+    except FileNotFoundError:
+        print("[-] El fichero {} no existe".format(inputfile))
+        sys.exit(-1)
     except:
         print("[-] El fichero {} no se ha podido abrir".format(inputfile))
         sys.exit(-1)
 
     try:
         plainfile = open(outputfile, "wb")
+    except FileNotFoundError:
+        print("[-] El fichero {} no existe".format(outputfile))
+        sys.exit(-1)
     except:
         print("[-] El fichero {} no se ha podido abrir".format(outputfile))
         sys.exit(-1)
