@@ -18,6 +18,7 @@ outputfile = ''
 keyfile = ''
 password = None
 selected_block = None
+fast = False
 
 def parse(argv):
     global inputfile
@@ -25,16 +26,19 @@ def parse(argv):
     global keyfile
     global password
     global selected_block
+    global fast
 
     try:
-        opts, args = getopt.getopt(argv,"hi:o:k:p:b:",["ifile=","ofile=","key=","pass=","bloque="])
+        opts, args = getopt.getopt(argv,"hi:o:k:p:b:f:",["ifile=","ofile=","key=","pass=","bloque=","fast"])
     except getopt.GetoptError:
         print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>]'.format(__file__))
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>]'.format(__file__))
+            print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>] [--fast]'.format(__file__))
             sys.exit()
+        elif opt in ('-f', "--fast"):
+            fast = True
         elif opt == '-i':
             inputfile = arg
         elif opt == '-o':
@@ -139,11 +143,15 @@ if __name__ == "__main__":
 
     if selected_block == None:
         intentos = 0
-        selected_block = random.randint(0, n_bloques-1)
+        if fast == True and n_bloques > 100000:
+            limit = 99999
+        else:
+            limit = n_bloques-1
+        selected_block = random.randint(0, limit)
         entropia = entropy(blocks[selected_block].hex())
         while entropia < 3 and intentos < 5:
             print("[-] Se ha seleccionado el bloque {} pero tiene una entropia muy baja de {} [{}/5]".format(selected_block,entropia,intentos+1))
-            selected_block = random.randint(0, n_bloques-1)
+            selected_block = random.randint(0, limit)
             entropia = entropy(blocks[selected_block].hex())
             intentos += 1
     else:
