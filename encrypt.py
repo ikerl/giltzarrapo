@@ -31,7 +31,7 @@ def parse(argv):
     try:
         opts, args = getopt.getopt(argv,"hi:o:k:p:b:f:",["ifile=","ofile=","key=","pass=","bloque=","fast"])
     except getopt.GetoptError:
-        print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>]'.format(__file__))
+        print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>] [--fast]'.format(__file__))
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
@@ -51,7 +51,7 @@ def parse(argv):
             selected_block = int(arg)
 
     if inputfile == "" or outputfile == "":
-        print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>]'.format(__file__))
+        print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>] [--fast]'.format(__file__))
         sys.exit()
             
 
