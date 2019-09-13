@@ -123,14 +123,14 @@ if __name__ == "__main__":
     print("[+] El archivo tiene {} bytes -> {} bloques que cifrar".format(file_size,file_size/CHUNKSIZE))
     try:
         bytes_read = file.read(CHUNKSIZE)
-        blocks[n_bloques] = bytes_read
         while bytes_read:
-            n_bloques += 1
-            bytes_read = file.read(CHUNKSIZE)
             blocks[n_bloques] = bytes_read
             # Padding
             block_size = len(blocks[n_bloques])
-            blocks[n_bloques] = bytes(blocks[n_bloques]) + (CHUNKSIZE - block_size)*b"\x00"
+            if block_size > 0:
+                blocks[n_bloques] = bytes(blocks[n_bloques]) + os.urandom(CHUNKSIZE - block_size)
+            n_bloques += 1
+            bytes_read = file.read(CHUNKSIZE)
     finally:
         file.close()
     

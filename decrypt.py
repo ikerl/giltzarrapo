@@ -91,20 +91,19 @@ if __name__ == "__main__":
     print("[+] El archivo tiene {} bytes -> {} bloques que descifrar".format(file_size,file_size/CHUNKSIZE))
 
     try:
+        n_bloques = 0
         bytes_read = cripto_file.read(CHUNKSIZE)
-        blocks[n_bloques] = bytes_read
-        n_bloques += 1
-        while bytes_read:      
-            bytes_read = cripto_file.read(CHUNKSIZE)
-            blocks[n_bloques] = bytes_read
+        while bytes_read: 
+            blocks[n_bloques] = bytes_read     
             n_bloques += 1
+            bytes_read = cripto_file.read(CHUNKSIZE)          
     finally:
         cripto_file.close()
 
     print("[+] Extrayendo datos del challenge")
-    hash_sha_sha = blocks[n_bloques-2][-20:]
-    size = int.from_bytes(blocks[n_bloques-2][-23:-21], byteorder='little')
-    blocks[n_bloques-2] = blocks[n_bloques-2][0:-23]
+    hash_sha_sha = blocks[n_bloques-1][-20:]
+    size = int.from_bytes(blocks[n_bloques-1][-23:-21], byteorder='little')
+    blocks[n_bloques-1] = blocks[n_bloques-1][0:-23]
     print("[+] Este fichero contiene {} bytes en el ultimo bloque".format(size))
     print("[+] Desafio a resolver: {}".format(hash_sha_sha))
 
@@ -137,12 +136,17 @@ if __name__ == "__main__":
 
     if selected != -1:
         print("[+] Descifrando fichero.. con el bloque seleccionado")
-        for i in range(0,n_bloques-1):
+        for i in range(0,len(blocks)-1):
             if i == selected:
-                blocks[i] = key.decrypt(bytes(blocks[selected]))
-                plainfile.write(blocks[i])
+                if i == len(blocks)-2:
+                    blocks[i] = key.decrypt(bytes(blocks[selected]))
+                    plainfile.write(blocks[i][:CHUNKSIZE-size])
+                    print("[+] Se ha quitado el padding de {} bytes del ultimo bloque {}".format(CHUNKSIZE-size,i))
+                else:
+                    blocks[i] = key.decrypt(bytes(blocks[selected]))
+                    plainfile.write(blocks[i])
             else:
-                if i == n_bloques-3:
+                if i == len(blocks)-2:
                     blocks[i] = encryptor.decrypt(blocks[i])
                     plainfile.write(blocks[i][:CHUNKSIZE-size])
                     print("[+] Se ha quitado el padding de {} bytes del ultimo bloque {}".format(CHUNKSIZE-size,i))
