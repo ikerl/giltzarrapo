@@ -17,19 +17,24 @@ blocks = {}
 inputfile = ''
 outputfile = ''
 keyfile = ''
+password = None
+selected = None
 
 def parse(argv):
     global inputfile
     global outputfile
     global keyfile
+    global password
+    global selected
+
     try:
-        opts, args = getopt.getopt(argv,"hi:o:k:",["ifile=","ofile=","key="])
+        opts, args = getopt.getopt(argv,"hi:o:k:p:b:",["ifile=","ofile=","key=","pass=","bloque="])
     except getopt.GetoptError:
-        print('{} -i <inputfile> -o <outputfile> [-k <RSAprivKey>]'.format(__file__))
+        print('{} -i <inputfile> -o <outputfile> [-k <RSAprivKey>] [-p <Password>] [-b <nBloque>]'.format(__file__))
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('{} -i <inputfile> -o <outputfile> [-k <RSAprivKey>]'.format(__file__))
+            print('{} -i <inputfile> -o <outputfile> [-k <RSAprivKey>] [-p <Password>] [-b <nBloque>]'.format(__file__))
             sys.exit()
         elif opt == '-i':
             inputfile = arg
@@ -37,9 +42,13 @@ def parse(argv):
             outputfile = arg
         elif opt == '-k':
             keyfile = arg
+        elif opt == '-p':
+            password = arg
+        elif opt == '-b':
+            selected = int(arg)
 
     if inputfile == "" or outputfile == "" or keyfile == "":
-        print('{} -i <inputfile> -o <outputfile> -k <RSAprivKey>'.format(__file__))
+        print('{} -i <inputfile> -o <outputfile> -k <RSAprivKey> [-p <Password>] [-b <nBloque>]'.format(__file__))
         sys.exit()
 
 ### MAIN
@@ -50,7 +59,7 @@ if __name__ == "__main__":
 
     print("[+] Importando clave privada RSA")
     try:
-        key = RSA.importKey(open(keyfile, "rb").read())
+        key = RSA.importKey(open(keyfile, "rb").read(),passphrase=password)
     except:
         print("[-] Clave RSA no encontrada o invalida")
         sys.exit(-1)
@@ -90,18 +99,32 @@ if __name__ == "__main__":
     print("[+] Este fichero contiene {} bytes en el ultimo bloque".format(size))
     print("[+] Desafio a resolver: {}".format(hash_sha_sha))
 
-    selected = -1
-    for n in range(0,n_bloques-1):
-        try:
-            clave = SHA256.new(key.decrypt(bytes(blocks[n]))).digest()
+    if selected == None:
+        selected = -1
+        for n in range(0,n_bloques-1):
+            try:
+                clave = SHA256.new(key.decrypt(bytes(blocks[n]))).digest()
+                encryptor = AES.new(clave)
+                firma = SHA.new(clave).digest()
+                if (firma == hash_sha_sha):
+                    print("[+] El bloque de la simetrica es la {}".format(n))
+                    selected = n
+                    break
+            except:
+                pass    
+    else:
+        if selected < n_bloques and selected >= 0:
+            clave = SHA256.new(key.decrypt(bytes(blocks[selected]))).digest()
             encryptor = AES.new(clave)
             firma = SHA.new(clave).digest()
             if (firma == hash_sha_sha):
-                print("[+] El bloque de la simetrica es la {}".format(n))
-                selected = n
-                break
-        except:
-            pass
+                print("[+] Simetrica encontrada con exito en el bloque {}".format(selected))
+            else:
+                print("[-] El bloque {} indicado no tiene una simetrica valida".format(selected))
+                sys.exit(-1)
+        else:
+            print("[-] El bloque indicado no es valido")
+            sys.exit(-1)
 
     if selected != -1:
         print("[+] Descifrando fichero.. con el bloque seleccionado")

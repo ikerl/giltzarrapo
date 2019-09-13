@@ -16,19 +16,24 @@ n_bloques = 0
 inputfile = ''
 outputfile = ''
 keyfile = ''
+password = None
+selected_block = None
 
 def parse(argv):
     global inputfile
     global outputfile
     global keyfile
+    global password
+    global selected_block
+
     try:
-        opts, args = getopt.getopt(argv,"hi:o:k:",["ifile=","ofile=","key="])
+        opts, args = getopt.getopt(argv,"hi:o:k:p:b:",["ifile=","ofile=","key=","pass=","bloque="])
     except getopt.GetoptError:
-        print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>]'.format(__file__))
+        print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>]'.format(__file__))
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>]'.format(__file__))
+            print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>]'.format(__file__))
             sys.exit()
         elif opt == '-i':
             inputfile = arg
@@ -36,9 +41,13 @@ def parse(argv):
             outputfile = arg
         elif opt == '-k':
             keyfile = arg
+        elif opt == '-p':
+            password = arg
+        elif opt == '-b':
+            selected_block = int(arg)
 
     if inputfile == "" or outputfile == "":
-        print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>]'.format(__file__))
+        print('{} -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>]'.format(__file__))
         sys.exit()
             
 
@@ -66,14 +75,14 @@ if __name__ == "__main__":
     if keyfile == "":
         print("[+] Generando clave RSA")
         key = RSA.generate(2048, Random.new().read)
-        privatekey = key.exportKey(pkcs=8,passphrase=None)
+        privatekey = key.exportKey(pkcs=8,passphrase=password)
         publickey = key.publickey().exportKey()
         PUBkey = key.publickey()
 
         rsa_file_pub = open("pub_crypto.key", "wb")
         rsa_file_priv = open("priv_crypto.key", "wb")
         rsa_file_pub.write(key.publickey().exportKey("PEM"))
-        rsa_file_priv.write(key.exportKey("PEM"))
+        rsa_file_priv.write(key.exportKey("PEM",passphrase=password))
         rsa_file_pub.close()
         rsa_file_priv.close()
     else:
@@ -115,12 +124,19 @@ if __name__ == "__main__":
 
     print("[+] Se han detectado {} bloques".format(n_bloques))
 
-    selected_block = random.randint(0, n_bloques-2)
-    entropia = entropy(blocks[selected_block].hex())
-    while entropia < 2:
-        print("[-] Se ha seleccionado el bloque {} pero tiene una entropia muy baja de {}".format(selected_block,entropia))
+    if selected_block == None:
         selected_block = random.randint(0, n_bloques-2)
         entropia = entropy(blocks[selected_block].hex())
+        while entropia < 2:
+            print("[-] Se ha seleccionado el bloque {} pero tiene una entropia muy baja de {}".format(selected_block,entropia))
+            selected_block = random.randint(0, n_bloques-2)
+            entropia = entropy(blocks[selected_block].hex())
+    else:
+        if selected_block < n_bloques and selected_block >= 0:
+            entropia = entropy(blocks[selected_block].hex())
+        else:
+            print("[-] El bloque indicado no es valido")
+            sys.exit(-2)
 
     print("[+] Se ha seleccionado el bloque {} como clave simetrica con entropia de {}".format(selected_block,entropia))
 
