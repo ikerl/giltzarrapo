@@ -1,0 +1,277 @@
+#!/usr/bin/python3
+
+import os
+import random
+import math
+import getopt
+import sys
+from Crypto import Random
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
+
+CHUNKSIZE = 256
+n_bloques = 0
+inputfile = ''
+outputfile = ''
+keyfile = ''
+n_bloques = 0
+password = None
+selected_block = None
+blocks = {}
+fast = False
+decrypt = False
+
+def parse(argv):
+    global inputfile
+    global outputfile
+    global keyfile
+    global password
+    global selected_block
+    global fast
+    global decrypt
+
+    try:
+        opts, args = getopt.getopt(argv,"hfdi:o:k:p:b:",["ifile=","ofile=","key=","pass=","bloque=","fast","decrypt"])
+    except getopt.GetoptError as e:
+        print('\033[1m{} [--decrypt] -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>] [--fast]\033[0m'.format(__file__))
+        print(e)
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print('\033[1m{} [--decrypt] -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>] [--fast]\033[0m'.format(__file__))
+            sys.exit()
+        elif opt in ('-f', "--fast"):
+            fast = True
+        elif opt in ('-d', "--decrypt"):
+            decrypt = True
+        elif opt == '-i':
+            inputfile = arg
+        elif opt == '-o':
+            outputfile = arg
+        elif opt == '-k':
+            keyfile = arg
+        elif opt == '-p':
+            password = arg
+        elif opt == '-b':
+            selected_block = int(arg)
+
+    if inputfile == "" or outputfile == "":
+        print('\033[1m{} [--decrypt] -i <inputfile> -o <outputfile> [-k <RSApubKey>] [-p <Password>] [-b <nBloque>] [--fast]\033[0m'.format(__file__))
+        sys.exit()
+
+    if decrypt == True and keyfile == '':
+        print("\033[91m[-] No se ha indicado ninguna clave privada para descifrar\033[0m")
+        print('\033[1m{} --decrypt -i <inputfile> -o <outputfile> -k <RSApubKey> [-p <Password>] [-b <nBloque>] [--fast]\033[0m'.format(__file__))
+        sys.exit()    
+
+
+def entropy(string):
+        
+        prob = [ float(string.count(c)) / len(string) for c in dict.fromkeys(list(string)) ]
+        entropy = - sum([ p * math.log(p) / math.log(2.0) for p in prob ])
+
+        return entropy
+
+
+
+
+### MAIN
+
+if __name__ == "__main__":
+
+    print("\033[94m[!] Parseando argumentos\033[0m")
+    parse(sys.argv[1:])
+    print("[+] Parseo realizado con exito")
+
+    print("\033[94m[!] Modulo de inicializacion\033[0m")
+    # Inicio del programa
+    if keyfile == "":
+        print("[+] Generando clave RSA")
+        key = RSA.generate(2048, Random.new().read)
+        privatekey = key.exportKey(pkcs=8,passphrase=password)
+        publickey = key.publickey().exportKey()
+        if decrypt == False:
+            PUBkey = key.publickey()
+
+        rsa_file_pub = open("pub_crypto.key", "wb")
+        rsa_file_priv = open("priv_crypto.key", "wb")
+        rsa_file_pub.write(key.publickey().exportKey("PEM"))
+        rsa_file_priv.write(key.exportKey("PEM",passphrase=password))
+        rsa_file_pub.close()
+        rsa_file_priv.close()
+    else:
+        print("[+] Importando clave RSA")
+        try:
+            if decrypt == False:
+                PUBkey = RSA.importKey(open(keyfile, "rb").read())
+            else:
+                PRIVkey = RSA.importKey(open(keyfile, "rb").read())
+        except FileNotFoundError:
+            print("[-] El fichero {} no existe".format(keyfile))
+            sys.exit(-1)
+        except:
+            print("[-] Clave RSA invalida")
+            sys.exit(-1)
+
+    print("[+] Clave RSA obtenida con exito")
+
+    try:
+        fin = open(inputfile, "rb")
+        file_size = os.path.getsize(inputfile)
+    except FileNotFoundError:
+        print("\033[91m[-] El fichero {} no existe\033[0m".format(inputfile))
+        sys.exit(-1)
+    except:
+        print("\033[91m[-] El fichero {} no se ha podido abrir\033[0m".format(inputfile))
+        sys.exit(-1)
+
+    try:
+        fout = open(outputfile, "wb")
+    except FileNotFoundError:
+        print("\033[91m[-] El fichero {} no existe\033[0m".format(outputfile))
+        sys.exit(-1)
+    except:
+        print("\033[91m[-] El fichero {} no se ha podido abrir\033[0m".format(outputfile))
+        sys.exit(-1)
+
+    # Modulo de cifrado
+    if decrypt == False:
+        print("\033[94m[!] Modulo de cifrado\033[0m")
+
+        print("[+] El archivo tiene {} bytes -> {} bloques que cifrar".format(file_size,file_size/CHUNKSIZE))
+        try:
+            bytes_read = fin.read(CHUNKSIZE)
+            while bytes_read:
+                blocks[n_bloques] = bytes_read
+                # Padding
+                block_size = len(blocks[n_bloques])
+                if block_size > 0:
+                    blocks[n_bloques] = bytes(blocks[n_bloques]) + os.urandom(CHUNKSIZE - block_size)
+                n_bloques += 1
+                bytes_read = fin.read(CHUNKSIZE)
+        finally:
+            fin.close()
+        
+
+        print("[+] Se han detectado {} bloques".format(n_bloques))
+
+        if selected_block == None:
+            intentos = 0
+            if fast == True and n_bloques > 100000:
+                limit = 99999
+            else:
+                limit = n_bloques-1
+            selected_block = random.randint(0, limit)
+            entropia = entropy(blocks[selected_block].hex())
+            while entropia < 3 and intentos < 5:
+                print("\033[91m[-] Se ha seleccionado el bloque {} pero tiene una entropia muy baja de {} [{}/5]\033[0m".format(selected_block,entropia,intentos+1))
+                selected_block = random.randint(0, limit)
+                entropia = entropy(blocks[selected_block].hex())
+                intentos += 1
+        else:
+            if selected_block < n_bloques and selected_block >= 0:
+                entropia = entropy(blocks[selected_block].hex())
+            else:
+                print("\033[91m[-] El bloque indicado no es valido\033[0m")
+                sys.exit(-2)
+
+        print("[+] Se ha seleccionado el bloque {} como clave simetrica con entropia de {}".format(selected_block,entropia))
+
+        print("[+] Cifrando fichero.. con el bloque seleccionado")
+        hash_sha = SHA256.new(blocks[selected_block]).digest()
+        hash_sha_sha = SHA.new(hash_sha).digest()
+        encryptor = AES.new(hash_sha, AES.MODE_ECB, "")
+
+        for n in range(0,n_bloques):
+            if n == selected_block:
+                blocks[n] = PUBkey.encrypt(bytes(blocks[n]),32)[0]
+                fout.write(blocks[n])
+                print("[+] El bloque {} se ha cifrado con la publica".format(n))
+            else:
+                #block_size = len(blocks[n])
+                blocks[n] = encryptor.encrypt(bytes(blocks[n]))
+                fout.write(blocks[n])
+
+        fout.write(int(CHUNKSIZE - block_size).to_bytes(2, 'little'))
+        fout.write(hash_sha_sha)
+        fout.close()
+
+        print("\033[93m[+] Desafio a resolver: {}\033[0m".format(hash_sha_sha))
+        print("\033[92m[+] Fichero cifrado con exito.\033[0m\n")
+    else:
+        # Modulo de descifrado
+        print("\033[94m[!] Modulo de descifrado\033[0m")
+
+        print("[+] El archivo tiene {} bytes -> {} bloques que descifrar".format(file_size,file_size/CHUNKSIZE))
+
+        try:
+            n_bloques = 0
+            bytes_read = fin.read(CHUNKSIZE)
+            while bytes_read: 
+                blocks[n_bloques] = bytes_read     
+                n_bloques += 1
+                bytes_read = fin.read(CHUNKSIZE)          
+        finally:
+            fin.close()
+
+        print("[+] Extrayendo datos del challenge")
+        hash_sha_sha = blocks[n_bloques-1][-20:]
+        size = int.from_bytes(blocks[n_bloques-1][-23:-21], byteorder='little')
+        blocks[n_bloques-1] = blocks[n_bloques-1][0:-23]
+        print("[+] Este fichero contiene {} bytes en el ultimo bloque".format(size))
+        print("\033[93m[+] Desafio a resolver: {}\033[0m".format(hash_sha_sha))
+
+        if selected_block == None:
+            selected_block = -1
+            for n in range(0,n_bloques-1):
+                try:
+                    clave = SHA256.new(PRIVkey.decrypt(bytes(blocks[n]))).digest()
+                    encryptor = AES.new(clave)
+                    firma = SHA.new(clave).digest()
+                    if (firma == hash_sha_sha):
+                        print("[+] El bloque de la simetrica es la {}".format(n))
+                        selected_block = n
+                        break
+                except:
+                    pass    
+        else:
+            if selected_block < n_bloques and selected_block >= 0:
+                clave = SHA256.new(PRIVkey.decrypt(bytes(blocks[selected_block]))).digest()
+                encryptor = AES.new(clave)
+                firma = SHA.new(clave).digest()
+                if (firma == hash_sha_sha):
+                    print("[+] Simetrica encontrada con exito en el bloque {}".format(selected_block))
+                else:
+                    print("\033[91m[-] El bloque {} indicado no tiene una simetrica valida\033[0m".format(selected_block))
+                    sys.exit(-1)
+            else:
+                print("\033[91m[-] El bloque indicado no es valido\033[0m")
+                sys.exit(-1)
+
+        if selected_block != -1:
+            print("[+] Descifrando fichero.. con el bloque seleccionado")
+            for i in range(0,len(blocks)-1):
+                if i == selected_block:
+                    if i == len(blocks)-2:
+                        blocks[i] = PRIVkey.decrypt(bytes(blocks[selected_block]))
+                        fout.write(blocks[i][:CHUNKSIZE-size])
+                        print("[+] Se ha quitado el padding de {} bytes del ultimo bloque {}".format(CHUNKSIZE-size,i))
+                    else:
+                        blocks[i] = PRIVkey.decrypt(bytes(blocks[selected_block]))
+                        fout.write(blocks[i])
+                else:
+                    if i == len(blocks)-2:
+                        blocks[i] = encryptor.decrypt(blocks[i])
+                        fout.write(blocks[i][:CHUNKSIZE-size])
+                        print("[+] Se ha quitado el padding de {} bytes del ultimo bloque {}".format(CHUNKSIZE-size,i))
+                    else:
+                        blocks[i] = encryptor.decrypt(blocks[i])
+                        fout.write(blocks[i])
+                #print(blocks[i])
+        else:
+            print("\033[91m[-] No se ha encontrado ninguna clave simetrica en el fichero\033[0m")
+            sys.exit(-1)
+
+        print("\033[92m[+] Fichero descifrado con exito\033[0m")
