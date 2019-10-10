@@ -30,7 +30,9 @@ if passwd != rpasswd:
 
 if args.key is None:
     #Generate new a new pair of keys
-    keypath = input('Enter file in which to save the key ({}/giltza_rsa): '.format(os.getcwd()))
+    default_path = '{}/giltza_rsa'.format(os.getcwd())
+    keypath = input('Enter file in which to save the key ({}): '.format(default_path))
+    if keypath == "" : keypath = default_path
     passphrase = getpass('Enter passphrase (empty for no passphrase): ')
     rpassphrase = getpass('Enter same passphrase again: ')
 
