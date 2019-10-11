@@ -1,8 +1,13 @@
 #!/usr/bin/python3
 import argparse
 
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, epilog = '{}'.format(
-    'examples'
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, epilog = '\n'.join(6*['{}']).format(
+    'example : encrypt.py file.txt file.txt.enc',
+    'example : encrypt.py -v -m /path/to/modules file.txt file.txt.enc',
+    'example : encrypt.py -v -k ~/.ssh/giltza_rsa.pub file.txt file.txt.enc',
+    'example : encrypt.py -v -b 400 file.txt file.txt.enc',
+    'example : encrypt.py -v -f off file.txt file.txt.enc',
+    'example : encrypt.py -v -m /path/to/modules -k ~/.ssh/giltza_rsa.pub -b 400 -f on file.txt file.txt.enc'
 ))
 parser.add_argument('infile', help = 'input file to encrypt')
 parser.add_argument('outfile', help = 'encrypted output file')
