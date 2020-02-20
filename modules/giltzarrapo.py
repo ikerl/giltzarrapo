@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-#????: Como de asequible es cascar el sha1 para obtener el sha256???
 #TODO: Add functionalidad de obtener el bloque en modo fast = false a partir del fichero export_auth
     #Propagar a encrypt y decrypt
 
