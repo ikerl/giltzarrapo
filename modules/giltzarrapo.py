@@ -1,8 +1,5 @@
 #!/usr/bin/python3
 
-#TODO: Add functionalidad de obtener el bloque en modo fast = false a partir del fichero export_auth
-    #Propagar a encrypt y decrypt
-
 import os
 import sys
 import math
@@ -85,7 +82,7 @@ class Giltzarrapo:
         try: PUBkey.encrypt(b, 32)
         except : return False;
         return True;
-         
+
     def findBlock(self, passwd, privkey, passphrase):
         if not os.path.isfile(privkey): raise ValueError('No such file or directory : {}'.format(privkey))
 
@@ -174,7 +171,7 @@ class Giltzarrapo:
         self.status = "encrypted"
         return self
 
-    def readEncrypted(self, infile):
+    def readEncrypted(self, infile, authfile = None):
         if not os.path.isfile(infile): raise ValueError('No such file or directory : {}'.format(infile))
 
         blocks = []
@@ -191,6 +188,15 @@ class Giltzarrapo:
                     blocks.append(bytes_read)
                     bytes_read = inf.read(self.chunkSize)
         except PermissionError: raise PermissionError('Read permission denied : {}'.format(infile))
+        except FileNotFoundError: raise FileNotFoundError('File not found : {}'.format(infile))
+
+        #If the file is in fast mode but an auth file is provided, trust the auth from the encrypted file
+        if (authfile is not None) and (info['fast'] is False):
+            try:
+                with open(authfile, 'rb') as authf: info['auth'] = authf.read(64)
+                info['fast'] = True
+            except PermissionError: raise PermissionError('Read permission denied : {}'.format(authfile))
+            except FileNotFoundError: raise FileNotFoundError('File not found : {}'.format(authfile))
 
         self.blocks = blocks
         self.info = info
@@ -234,7 +240,7 @@ class Giltzarrapo:
         self.status = "plain"
         return self
 
-    def save(self, outfile, export_auth = None):
+    def save(self, outfile, authfile = None):
         if self.status == None: raise TypeError('There is no readed data to save')
 
         try :
@@ -253,9 +259,9 @@ class Giltzarrapo:
         except PermissionError : raise PermissionError('Write permission denied : {}'.format(outfile))
 
         try :
-            if export_auth != None:
-                with open(export_auth, 'wb') as authf: authf.write(self.info['auth'])
-        except PermissionError : raise PermissionError('Write permission denied : {}'.format(export_auth))
+            if authfile != None:
+                with open(authfile, 'wb') as authf: authf.write(self.info['auth'])
+        except PermissionError : raise PermissionError('Write permission denied : {}'.format(authfile))
 
     def clear(self):
         self.blocks = []

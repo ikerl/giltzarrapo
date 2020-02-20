@@ -1,20 +1,17 @@
 #!/usr/bin/python3
 import argparse
 
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, epilog = '\n'.join(6*['{}']).format(
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, epilog = '\n'.join(2*['{}']).format(
     'example : encrypt.py file.txt file.txt.enc',
-    'example : encrypt.py -v -m /path/to/modules file.txt file.txt.enc',
-    'example : encrypt.py -v -k ~/.ssh/giltza_rsa.pub file.txt file.txt.enc',
-    'example : encrypt.py -v -b 400 file.txt file.txt.enc',
-    'example : encrypt.py -v -f off file.txt file.txt.enc',
-    'example : encrypt.py -v -m /path/to/modules -k ~/.ssh/giltza_rsa.pub -b 400 -f on file.txt file.txt.enc'
+    'example : encrypt.py -v -m /path/to/modules -k ~/.ssh/giltza_rsa.pub -b 400 -f off -a file.auth file.txt file.txt.enc'
 ))
 parser.add_argument('infile', help = 'input file to encrypt')
 parser.add_argument('outfile', help = 'encrypted output file')
-parser.add_argument('-k', '--key', help = 'public key used in encryption\nIf no specified a new pair will be generated', metavar = 'pubkey', default = None)
-parser.add_argument('-f', '--fast', help = 'enable/disable fast mode\nDefault on', metavar = 'on/off', choices = ['on', 'off'], default = 'on')
-parser.add_argument('-b', '--block', help = 'symetric block to use in the encryption', metavar = 'sb', type = int, default = None)
-parser.add_argument('-m', '--modules', help = 'absolute path to the modules folder\nUse this option if the script can not import the modules', metavar = 'path', default = None)
+parser.add_argument('-k', '--key', help = 'public key used in encryption\nif the key is not specified a new pair will be generated', metavar = 'pubkey', default = None)
+parser.add_argument('-f', '--fast', help = 'enable/disable fast mode\ndefault on', metavar = 'on/off', choices = ['on', 'off'], default = 'on')
+parser.add_argument('-b', '--block', help = 'symetric block to use in the encryption', metavar = 'selectedBlock', type = int, default = None)
+parser.add_argument('-m', '--modules', help = 'absolute path to the modules folder\nuse this option if the script can not import the modules', metavar = 'modulesPath', default = None)
+parser.add_argument('-a', '--auth', help = 'export auth file\nused to encrypt with fast mode off but export the info to enable fast decrypt', metavar='authfile', default = None)
 parser.add_argument('-v', '--verbose', help = 'show encryption info and progress', action = 'store_true', default = False)
 args = parser.parse_args()
 
@@ -58,7 +55,7 @@ args.fast = True if (args.fast is 'on') else False
 
 if not args.verbose:
     #Encrypt the file as one-liner
-    Giltzarrapo().readPlain(args.infile).encrypt(passwd, args.key, selected_block = args.block, fast = args.fast).save(args.outfile)
+    Giltzarrapo().readPlain(args.infile).encrypt(passwd, args.key, selected_block = args.block, fast = args.fast).save(args.outfile, authfile = args.auth)
 else:
     #Encrypt the file step by step
     ecprint('Starting encrypting module...', color = 'blue')
@@ -84,5 +81,6 @@ else:
 
     #Save the file
     ecprint('Saving file...', color = 'blue')
-    g.save(args.outfile)
+    g.save(args.outfile, authfile = args.auth)
     ecprint(args.outfile, color = 'blue', template = 'File saved at {}')
+    if (args.auth is not None): ecprint(args.auth, color = 'blue', template = 'Authfile saved at {}')
