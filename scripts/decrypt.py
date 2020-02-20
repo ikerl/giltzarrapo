@@ -24,7 +24,7 @@ from getpass import getpass
 if args.modules is not None : sys.path.insert(0, args.modules)
 try:
     from giltzarrapo import Giltzarrapo
-    from easycolor import ecprint
+    from printer import ecprint
 except : sys.exit('Can not import required modules. Try using -m option')
 
 passwd = getpass('Password: ')
@@ -36,27 +36,27 @@ if not args.verbose:
     Giltzarrapo().readEncrypted(args.infile).decrypt(passwd, args.key, passphrase, selected_block = args.block).save(args.outfile)
 else:
     #Encrypt the file step by step
-    ecprint('Starting decrypting module...', c = 'blue')
+    ecprint('Starting decrypting module...', color = 'blue')
 
     #Read the file
     g = Giltzarrapo()
-    ecprint([args.infile, os.path.getsize(args.infile)], c = 'yellow', template = 'Reading file : {} ({} Bytes)')
+    ecprint([args.infile, os.path.getsize(args.infile)], color = 'yellow', template = 'Reading file : {} ({} Bytes)')
     g.readEncrypted(args.infile)
-    ecprint(len(g.blocks), c = 'yellow', template = 'Blocks to decrypt: {}')
+    ecprint(len(g.blocks), color = 'yellow', template = 'Blocks to decrypt: {}')
 
     #Find the symetric block (this step is automatically done in the decryption if the block is not provided)
     if args.block is None:
-        ecprint('Finding the symetric block...', c = 'blue')
+        ecprint('Finding the symetric block...', color = 'blue')
         args.block = g.findBlock(passwd, args.key, passphrase)
-        ecprint(args.block, c = 'yellow', template = 'Symetric block found: {}')
-    else : ecprint(args.block, c = 'yellow', template = 'Preselected symetric block: {}')
+        ecprint(args.block, color = 'yellow', template = 'Symetric block found: {}')
+    else : ecprint(args.block, color = 'yellow', template = 'Preselected symetric block: {}')
 
     #Decrypt the file
-    ecprint('Decrypting file...', c = 'blue')
-    ecprint([args.block, args.key, ''.join(['*' for _ in passwd])], c = 'yellow', template = 'Using : \n\tSymetric block: {}\n\tPrivate key: {}\n\tPassword: {}')
+    ecprint('Decrypting file...', color = 'blue')
+    ecprint([args.block, args.key, ''.join(['*' for _ in passwd])], color = 'yellow', template = 'Using : \n\tSymetric block: {}\n\tPrivate key: {}\n\tPassword: {}')
     g.decrypt(passwd, args.key, passphrase, selected_block = args.block)
 
     #Save the file
-    ecprint('Saving file...', c = 'blue')
+    ecprint('Saving file...', color = 'blue')
     g.save(args.outfile)
-    ecprint(args.outfile, c = 'blue', template = 'File saved at {}')
+    ecprint(args.outfile, color = 'blue', template = 'File saved at {}')
