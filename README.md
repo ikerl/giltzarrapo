@@ -29,7 +29,7 @@ The file 'file.txt' is encrypted using the password 'AES passwd' and the public 
 from giltzarrapo import Giltzarrapo
 Giltzarrapo().readEncrypted('file.txt.enc').decrypt('AES passwd', 'RSA privkey file', 'privkey passphrase').save('file.txt.dec')
 ```
-The file 'file.txt.enc' is decrypted with the password 'AES passwd' and the private key at 'RSA privkey file'. The decrypted file is saved at 'file.txt.dec'
+The file 'file.txt.enc' is decrypted with the password 'AES passwd' and the private key at 'RSA privkey file'. If the key was generated using a passphrase it must be specified at 'privkey passphrase', otherwise it is not required assuming a value of ''.  The decrypted file is saved at 'file.txt.dec'
 &nbsp;  
 
 ##### Other options
