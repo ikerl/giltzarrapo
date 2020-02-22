@@ -290,7 +290,7 @@ class Giltzarrapo:
                 for i,b in enumerate(self.blocks): outf.write(b)
         except PermissionError : raise PermissionError('Write permission denied : {}'.format(outfile))
 
-        if authfile != None:
+        if authfile != None and self.status == 'encrypted':
             try:
                 with open(authfile, 'wb') as authf: authf.write(self.info['auth'])
             except PermissionError : raise PermissionError('Write permission denied : {}'.format(authfile))
