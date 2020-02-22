@@ -32,9 +32,8 @@ Giltzarrapo.generateRSApair(
 )
 ```
 &nbsp;  
-&nbsp;  
 
-#### Other options
+##### Other options
 There are other options that can be used. Also, the encryption/decryption can be performed step by step
 ```python
 from giltzarrapo import Giltzarrapo
