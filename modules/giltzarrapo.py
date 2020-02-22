@@ -15,6 +15,9 @@ from Crypto.PublicKey import RSA
 
 class Giltzarrapo:
     def __init__(self, chunkSize = 512):
+        #Check chunkSize is power of 2: https://stackoverflow.com/questions/29480680/finding-if-a-number-is-a-power-of-2-using-recursion
+        if not bool(chunkSize and not (chunkSize & (chunkSize-1))): raise ValueError('chunkSize must be power of 2')
+
         self.chunkSize = chunkSize
         self.blocks = []
         self.info = {}
@@ -23,6 +26,9 @@ class Giltzarrapo:
     @staticmethod
     def generateRSApair(passphrase = "", dir = None, name = "giltza_rsa", RSAlen = 4096):
         """Generates RSA key pair"""
+        #Check RSAlen is power of 2
+        if not bool(RSAlen and not (RSAlen&(RSAlen-1))): raise ValueError('RSAlen must be power of 2')
+
         #Prepare the rsa template with path
         if dir != None:
             #Replace ~ for the user's home
