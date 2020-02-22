@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+from printer import cprint, ecprint
 
 import os
 import sys
@@ -20,7 +21,9 @@ class Giltzarrapo:
         self.status = None
 
     @staticmethod
-    def generateRSApair(passphrase = "", dir = None, name = "giltza_rsa"):
+    def generateRSApair(passphrase = "", dir = None, name = "giltza_rsa", RSAlen = 4096):
+        """Generates RSA key pair"""
+        #Prepare the rsa template with path
         if dir != None:
             #Replace ~ for the user's home
             if '~' in dir : dir = '/home/{}/{}'.format(getuser(), dir[len(dir) - ''.join(list(reversed(dir))).index('~') + 1:])
@@ -28,12 +31,14 @@ class Giltzarrapo:
 
             if not os.path.exists(dir) : raise ValueError('No such directory : {}'.format(dir))
             file_template = '{}/{}'.format(dir, name)
-        else : file_template = '{}/{}'.format(dir, os.getcwd())
+        else : file_template = '{}/{}'.format(os.getcwd(), name)
 
+        #Prepare the rsa files path and names
         privKey = file_template
         pubKey = '{}.pub'.format(file_template)
 
-        key = RSA.generate(4096, Random.new().read)
+        #Generate rsa pair
+        key = RSA.generate(RSAlen, Random.new().read)
         try :
             with open(privKey, 'wb') as priv, open(pubKey, 'wb') as pub:
                 priv.write(key.exportKey("PEM", passphrase = passphrase))
@@ -51,6 +56,7 @@ class Giltzarrapo:
         return (- sum([ p * math.log(p) / math.log(2.0) for p in prob ]))
 
     def selectBlock(self, tryLimit = 5):
+        """Select the highest entropy block from a random set of blocks"""
         try_blocks = [randint(0, len(self.blocks) - 1) for _ in range(tryLimit)]
         blocks_entropy = { block_index : Giltzarrapo.entropy(self.blocks[block_index].hex()) for block_index in try_blocks}
         selected_block = max(blocks_entropy.items(), key = itemgetter(1))[0]
@@ -74,9 +80,7 @@ class Giltzarrapo:
                 'selected block >= 0'
             ))
 
-        if selected_block == len(self.blocks) - 1:
-            block_size = len(self.blocks[-1])
-            b = self.blocks[-1] + os.urandom(self.chunkSize - block_size)
+        if selected_block == len(self.blocks) - 1: b = self.blocks[-1] + os.urandom(self.chunkSize - len(self.blocks[-1]))
         else : b = self.blocks[selected_block]
 
         try: PUBkey.encrypt(b, 32)
@@ -84,21 +88,30 @@ class Giltzarrapo:
         return True;
 
     def findBlock(self, passwd, privkey, passphrase):
+        #Check given rsa exists
         if not os.path.isfile(privkey): raise ValueError('No such file or directory : {}'.format(privkey))
-
+        #Check rsa passphrase is valid and the file is readable
         try : PRIVkey = RSA.importKey(open(privkey, "rb").read(), passphrase = passphrase)
         except ValueError: raise ValueError('Wrong or required passphrase')
         except PermissionError: raise PermissionError('Read permission denied : {}'.format(privkey))
+        #Check rsa is the private one
         if not PRIVkey.has_private(): raise KeyError('Wrong key format')
 
+        #Bruteforce the block
         for i,b in enumerate(self.blocks):
-            if self.info['fast'] :
+            if self.info['fast'] : #Use the challenge if is possible
                 passwd_hash = SHA512.new(bytes('{}{}{}'.format(self.info['challenge'].hex(), i, passwd), encoding='utf-8')).digest()
                 if passwd_hash != self.info['auth']: continue
 
-            try : block_hash = SHA256.new(PRIVkey.decrypt(b) + bytes(passwd, encoding = 'utf-8')).digest()
-            except : continue
+            #As the output of the rsa encryption is key-size dependent, we may have to merge some blocks
+            #in order to allow the decryption. As the output is key-size / 8, the number of blocks to merge is key-size / (8 * chunkSize)
+            num_blocks = round((PRIVkey.key.size() + 1) / (8 * self.chunkSize))
+            rsa_block = b
+            for j in range(1, num_blocks): rsa_block += self.blocks[i + j]
 
+            #Decrypt the block and compare the hash with the challenge
+            try : block_hash = SHA256.new(PRIVkey.decrypt(rsa_block) + bytes(passwd, encoding = 'utf-8')).digest()
+            except : continue
             signature = SHA.new(block_hash).digest()
             if signature == self.info['challenge']: return i
 
@@ -201,6 +214,7 @@ class Giltzarrapo:
         self.blocks = blocks
         self.info = info
         self.status = "encrypted"
+
         return self
 
     def decrypt(self, passwd, privkey, passphrase, selected_block = None):
@@ -214,6 +228,13 @@ class Giltzarrapo:
         #Found and check the selected block
         if selected_block == None:
             selected_block = self.findBlock(passwd, privkey, passphrase)
+
+            #Merge some blocks at the selected one to reach rsa encryption output size
+            num_blocks = round((PRIVkey.key.size() + 1) / (8 * self.chunkSize))
+            for i in range(1, num_blocks): self.blocks[selected_block] += self.blocks[selected_block + i]
+            del self.blocks[selected_block + 1:selected_block + num_blocks]
+
+            #Get the hash used for symetric encryption
             block_hash = SHA256.new(PRIVkey.decrypt(self.blocks[selected_block]) + bytes(passwd, encoding = 'utf-8')).digest()
         else:
             if type(selected_block) != int:
@@ -224,9 +245,14 @@ class Giltzarrapo:
                     'selected block >= 0'
                 ))
 
+            #Merge some blocks at the selected one to reach rsa encryption output size
+            num_blocks = round((PRIVkey.key.size() + 1) / (8 * self.chunkSize))
+            for i in range(1, num_blocks): self.blocks[selected_block] += self.blocks[selected_block + i]
+            del self.blocks[selected_block + 1:selected_block + num_blocks]
+
+            #Verify the challenge
             try : block_hash = SHA256.new(PRIVkey.decrypt(self.blocks[selected_block]) + bytes(passwd, encoding = 'utf-8')).digest()
             except : raise ValueError('Can not decrypt with {} as selected block'.format(selected_block))
-
             signature = SHA.new(block_hash).digest()
             if signature != self.info['challenge']: raise ValueError('Wrong selected block or wrong password')
 
@@ -258,10 +284,10 @@ class Giltzarrapo:
                 for i,b in enumerate(self.blocks): outf.write(b)
         except PermissionError : raise PermissionError('Write permission denied : {}'.format(outfile))
 
-        try :
-            if authfile != None:
+        if authfile != None:
+            try:
                 with open(authfile, 'wb') as authf: authf.write(self.info['auth'])
-        except PermissionError : raise PermissionError('Write permission denied : {}'.format(authfile))
+            except PermissionError : raise PermissionError('Write permission denied : {}'.format(authfile))
 
     def clear(self):
         self.blocks = []
