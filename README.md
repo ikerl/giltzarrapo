@@ -36,7 +36,7 @@ The file 'file.txt.enc' is decrypted with the password 'AES passwd' and the priv
 There are other options that can be used. Also, the encryption/decryption can be performed step by step
 ```python
 from giltzarrapo import Giltzarrapo
-g = Giltzarrapo(chunkSize = 512)     #512 is the default size. Any power of 2 that satisfies "chunkSize * 8 <= RSAlen" can be used. A smaller chunkSize makes the encryption/decryption slower but provides more security against bruteforce
+g = Giltzarrapo(chunkSize = 512)     #512 is the default size. Any power of 2 that satisfies "chunkSize * 8 <= RSAlen" can be used.
 
 g.readPlain('file.txt')
 g.encrypt('AES passwd', 'RSA pubkey file', 
