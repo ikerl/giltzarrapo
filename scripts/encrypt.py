@@ -1,20 +1,17 @@
 #!/usr/bin/python3
 import argparse
 
-parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, epilog = '\n'.join(6*['{}']).format(
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, epilog = '\n'.join(2*['{}']).format(
     'example : encrypt.py file.txt file.txt.enc',
-    'example : encrypt.py -v -m /path/to/modules file.txt file.txt.enc',
-    'example : encrypt.py -v -k ~/.ssh/giltza_rsa.pub file.txt file.txt.enc',
-    'example : encrypt.py -v -b 400 file.txt file.txt.enc',
-    'example : encrypt.py -v -f off file.txt file.txt.enc',
-    'example : encrypt.py -v -m /path/to/modules -k ~/.ssh/giltza_rsa.pub -b 400 -f on file.txt file.txt.enc'
+    'example : encrypt.py -v -m /path/to/modules -k ~/.ssh/giltza_rsa.pub -b 400 -f off -a file.auth file.txt file.txt.enc'
 ))
 parser.add_argument('infile', help = 'input file to encrypt')
 parser.add_argument('outfile', help = 'encrypted output file')
-parser.add_argument('-k', '--key', help = 'public key used in encryption\nIf no specified a new pair will be generated', metavar = 'pubkey', default = None)
-parser.add_argument('-f', '--fast', help = 'enable/disable fast mode\nDefault on', metavar = 'on/off', choices = ['on', 'off'], default = 'on')
-parser.add_argument('-b', '--block', help = 'symetric block to use in the encryption', metavar = 'sb', type = int, default = None)
-parser.add_argument('-m', '--modules', help = 'absolute path to the modules folder\nUse this option if the script can not import the modules', metavar = 'path', default = None)
+parser.add_argument('-k', '--key', help = 'public key used in encryption\nif the key is not specified a new pair will be generated', metavar = 'pubkey', default = None)
+parser.add_argument('-f', '--fast', help = 'enable/disable fast mode\ndefault on', metavar = 'on/off', choices = ['on', 'off'], default = 'on')
+parser.add_argument('-b', '--block', help = 'symetric block to use in the encryption', metavar = 'selectedBlock', type = int, default = None)
+parser.add_argument('-m', '--modules', help = 'absolute path to the modules folder\nuse this option if the script can not import the modules', metavar = 'modulesPath', default = None)
+parser.add_argument('-a', '--auth', help = 'export auth file\nused to encrypt with fast mode off but export the info to enable fast decrypt', metavar='authfile', default = None)
 parser.add_argument('-v', '--verbose', help = 'show encryption info and progress', action = 'store_true', default = False)
 args = parser.parse_args()
 
@@ -24,13 +21,13 @@ from getpass import getpass
 if args.modules is not None : sys.path.insert(0, args.modules)
 try:
     from giltzarrapo import Giltzarrapo
-    from easycolor import ecprint
+    from printer import ecprint
 except : sys.exit('Can not import required modules. Try using -m option')
 
 passwd = getpass('Password: ')
 rpasswd = getpass('Repeat password: ')
 if passwd != rpasswd:
-    ecprint('Passwords do not match', c = 'red')
+    ecprint('Passwords do not match', color = 'red')
     sys.exit()
 
 if args.key is None:
@@ -42,7 +39,7 @@ if args.key is None:
     rpassphrase = getpass('Enter same passphrase again: ')
 
     if passphrase != rpassphrase:
-        ecprint('Passphrases do not match', c = 'red')
+        ecprint('Passphrases do not match', color = 'red')
         sys.exit()
 
     keyargs = {'dir' : '/'.join(keypath.split('/')[:-1]), 'name' : keypath.split('/')[-1]}
@@ -51,38 +48,39 @@ if args.key is None:
     args.key = pubKey
 
     if args.verbose :
-        ecprint(privKey, c = 'yellow', template = 'Your identification has been saved in {}')
-        ecprint(pubKey, c = 'yellow', template = 'Your public key has been save in {}')
+        ecprint(privKey, color = 'yellow', template = 'Your identification has been saved in {}')
+        ecprint(pubKey, color = 'yellow', template = 'Your public key has been save in {}')
 
 args.fast = True if (args.fast is 'on') else False
 
 if not args.verbose:
     #Encrypt the file as one-liner
-    Giltzarrapo().readPlain(args.infile).encrypt(passwd, args.key, selected_block = args.block, fast = args.fast).save(args.outfile)
+    Giltzarrapo().readPlain(args.infile).encrypt(passwd, args.key, selected_block = args.block, fast = args.fast).save(args.outfile, authfile = args.auth)
 else:
     #Encrypt the file step by step
-    ecprint('Starting encrypting module...', c = 'blue')
+    ecprint('Starting encrypting module...', color = 'blue')
 
     #Read the file
     g = Giltzarrapo()
-    ecprint([args.infile, os.path.getsize(args.infile)], c = 'yellow', template = 'Reading file : {} ({} Bytes)')
+    ecprint([args.infile, os.path.getsize(args.infile)], color = 'yellow', template = 'Reading file : {} ({} Bytes)')
     g.readPlain(args.infile)
-    ecprint(len(g.blocks), c = 'yellow', template = 'Blocks to encrypt: {}')
+    ecprint(len(g.blocks), color = 'yellow', template = 'Blocks to encrypt: {}')
 
     #Select the symetric block (this step is automatically done in the encryption if the block is not provided)
     if args.block is None:
-        ecprint('Selecting a high entropy block...', c = 'blue')
+        ecprint('Selecting a high entropy block...', color = 'blue')
         args.block = g.selectBlock(tryLimit = 10)
         while not g.verifySymetricBlock(args.block, args.key): args.block = g.selectBlock(tryLimit = 10)
-    else : ecprint('Preselected block for encryption', c = 'blue')
-    ecprint([args.block, '{:.4f}'.format(Giltzarrapo.entropy(g.blocks[args.block]))], c = 'yellow', template = 'Selected block: {} (entropy of {})')
+    else : ecprint('Preselected block for encryption', color = 'blue')
+    ecprint([args.block, '{:.4f}'.format(Giltzarrapo.entropy(g.blocks[args.block]))], color = 'yellow', template = 'Selected block: {} (entropy of {})')
 
     #Encrypt the file
-    ecprint('Encrypting file...', c = 'blue')
-    ecprint([args.block, args.key, ''.join(['*' for _ in passwd])], c = 'yellow', template = 'Using : \n\tSymetric block: {}\n\tPublic key: {}\n\tPassword: {}')
+    ecprint('Encrypting file...', color = 'blue')
+    ecprint([args.block, args.key, ''.join(['*' for _ in passwd])], color = 'yellow', template = 'Using : \n\tSymetric block: {}\n\tPublic key: {}\n\tPassword: {}')
     g.encrypt(passwd, args.key, selected_block = args.block, fast = args.fast)
 
     #Save the file
-    ecprint('Saving file...', c = 'blue')
-    g.save(args.outfile)
-    ecprint(args.outfile, c = 'blue', template = 'File saved at {}')
+    ecprint('Saving file...', color = 'blue')
+    g.save(args.outfile, authfile = args.auth)
+    ecprint(args.outfile, color = 'blue', template = 'File saved at {}')
+    if (args.auth is not None): ecprint(args.auth, color = 'blue', template = 'Authfile saved at {}')
