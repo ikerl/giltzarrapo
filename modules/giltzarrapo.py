@@ -172,7 +172,7 @@ class Giltzarrapo:
         block_size = len(self.blocks[-1])
         self.blocks[-1] = self.blocks[-1] + os.urandom(self.chunkSize - block_size)
 
-        #Encrypt the file
+        #Get the symetric encryptor
         hash_sha = SHA256.new(self.blocks[selected_block] + bytes(passwd, encoding = 'utf-8')).digest()
         hash_sha_sha = SHA.new(hash_sha).digest()
         encryptor = AES.new(hash_sha, AES.MODE_ECB, "")
